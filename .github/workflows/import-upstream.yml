@@ -1,0 +1,47 @@
+name: Import upstream QRcodly source
+
+on:
+  push:
+    branches:
+      - feat/import-qrcodly-source
+    paths:
+      - .github/workflows/import-upstream.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: target
+
+      - name: Clone upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: FloB95/qrcodly
+          ref: main
+          path: upstream
+          fetch-depth: 1
+
+      - name: Import source into a separate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B feat/qrcode-docker-readiness origin/main
+          rsync -a --delete --exclude='.git' ../upstream/ ./
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source changes to import."
+            exit 0
+          fi
+          git commit -m "Import upstream QRcodly source for Docker audit"
+          git push origin HEAD:feat/qrcode-docker-readiness
